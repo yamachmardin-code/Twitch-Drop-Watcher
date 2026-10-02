@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>Twitch Stream Queue</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #f3f3f3; background: #111; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #111; color: #f3f3f3; }
+    .app { width: min(980px, 100%); margin: 0 auto; padding: 14px; }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .sub { margin: 0 0 14px; color: #bdbdbd; font-size: 14px; line-height: 1.4; }
+    .warning { display:none; padding: 12px; margin: 0 0 14px; border: 1px solid #5d4a00; border-radius: 10px; background: #251f00; color: #ffe79a; line-height: 1.4; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .card { background: #191919; border: 1px solid #303030; border-radius: 12px; padding: 12px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .between { justify-content: space-between; }
+    .label { color: #aaa; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    .current { font-size: 24px; font-weight: 750; margin-top: 3px; overflow-wrap: anywhere; }
+    .timer { font-variant-numeric: tabular-nums; font-size: 32px; font-weight: 750; margin-top: 2px; }
+    .status { margin-top: 6px; color: #cfcfcf; min-height: 22px; }
+    .queue { display: grid; gap: 8px; margin-top: 10px; }
+    .qitem { display: grid; grid-template-columns: 34px minmax(0,1fr) 92px; gap: 8px; align-items: center; padding: 9px; border: 1px solid #2b2b2b; border-radius: 9px; }
+    .qitem.active { border-color: #777; background: #202020; }
+    .num { color: #888; text-align: center; }
+    input { width: 100%; min-width: 0; border: 1px solid #444; border-radius: 8px; padding: 9px 10px; background:#101010; color:#fff; font: inherit; }
+    input[type="number"] { text-align: right; }
+    button, a.btn { border: 1px solid #444; border-radius: 9px; background: #252525; color:#fff; padding: 10px 13px; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; display:inline-flex; align-items:center; justify-content:center; }
+    button.primary { background:#f0f0f0; color:#111; border-color:#f0f0f0; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .controls { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:8px; margin-top:12px; }
+    .progress { height: 9px; background:#2a2a2a; border-radius:999px; overflow:hidden; margin-top:10px; }
+    .bar { height:100%; width:0%; background:#cfcfcf; transition:width .25s linear; }
+    .player-shell { overflow-x:auto; }
+    #twitch-embed { min-width:400px; min-height:300px; width:100%; }
+    .small { color:#a9a9a9; font-size:12px; line-height:1.45; }
+    .testbox { margin-top:10px; padding:10px; border-radius:9px; background:#151515; border:1px dashed #3d3d3d; }
+    .done { color:#aef0ae; }
+    @media (min-width: 760px) {
+      .grid { grid-template-columns: 380px minmax(0,1fr); align-items:start; }
+      .controls { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>Twitch Stream Queue</h1>
+  <p class="sub">Один официальный Twitch-плеер, один канал за раз, очередь и автоматическое переключение через официальный Twitch Embed API.</p>
+
+  <div id="httpsWarning" class="warning">
+    Twitch Embed требует HTTPS-домен. Не открывай этот файл напрямую через <b>file://</b>. Залей его как <b>index.html</b> на GitHub Pages и открой выданный HTTPS-адрес.
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <div class="label">Сейчас</div>
+      <div id="currentName" class="current">PETERPARK</div>
+      <div id="timeText" class="timer">00:00 / 60:00</div>
+      <div class="progress"><div id="progressBar" class="bar"></div></div>
+      <div id="status" class="status">Готово. Войди в Twitch внутри плеера и нажми START.</div>
+
+      <div class="controls">
+        <button id="startBtn" class="primary">START</button>
+        <button id="pauseBtn">PAUSE</button>
+        <button id="nextBtn">NEXT</button>
+        <button id="testBtn">TEST 15 MIN</button>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <a class="btn" href="https://www.twitch.tv/drops/inventory" target="_blank" rel="noopener noreferrer">DROPS INVENTORY</a>
+        <a id="openChannel" class="btn" href="https://www.twitch.tv/peterpark" target="_blank" rel="noopener noreferrer">OPEN ON TWITCH</a>
+      </div>
+
+      <div class="testbox small">
+        <b>Перед первым нормальным запуском:</b> открой Drops Inventory и запомни процент. Потом нажми TEST 15 MIN. После теста снова открой Inventory. Если прогресс вырос, этот способ у тебя реально засчитывается. Если нет — не трать на него оставшееся время кампании.
+      </div>
+
+      <div class="small" style="margin-top:10px">
+        Таймер идет только после события <b>PLAYING</b> от официального Twitch-плеера. При PAUSE/OFFLINE таймер останавливается. Оффлайн-канал автоматически пропускается. После последнего канала очередь останавливается — бесконечного автолупа нет.
+      </div>
+    </section>
+
+    <section>
+      <div class="card player-shell">
+        <div id="twitch-embed"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="row between">
+          <div>
+            <div class="label">Очередь</div>
+            <div class="small">Можно поменять минуты до START. Названия каналов уже внесены.</div>
+          </div>
+          <button id="resetBtn">RESET</button>
+        </div>
+        <div id="queue" class="queue"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://embed.twitch.tv/embed/v1.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const DEFAULT_CHANNELS = [
+    { name: 'peterpark', minutes: 60 },
+    { name: 'fancyorb', minutes: 60 },
+    { name: 'mrwobblestwitch', minutes: 60 },
+    { name: 'zchum', minutes: 60 }
+  ];
+
+  const els = {
+    httpsWarning: document.getElementById('httpsWarning'),
+    currentName: document.getElementById('currentName'),
+    timeText: document.getElementById('timeText'),
+    progressBar: document.getElementById('progressBar'),
+    status: document.getElementById('status'),
+    startBtn: document.getElementById('startBtn'),
+    pauseBtn: document.getElementById('pauseBtn'),
+    nextBtn: document.getElementById('nextBtn'),
+    testBtn: document.getElementById('testBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    openChannel: document.getElementById('openChannel'),
+    queue: document.getElementById('queue')
+  };
+
+  let channels = loadChannels();
+  let currentIndex = 0;
+  let player = null;
+  let playerReady = false;
+  let queueRunning = false;
+  let testMode = false;
+  let isPlaying = false;
+  let elapsedMs = 0;
+  let playStartedAt = null;
+  let switchGuard = 0;
+  let failoverTimer = null;
+  let renderTimer = null;
+  let allOfflineAttempts = 0;
+  let finished = false;
+
+  const supportedHost = location.protocol === 'https:';
+  if (!supportedHost) {
+    els.httpsWarning.style.display = 'block';
+    els.startBtn.disabled = true;
+    els.testBtn.disabled = true;
+  }
+
+  function loadChannels() {
+    try {
+      const raw = localStorage.getItem('tsq_channels_v1');
+      if (!raw) return structuredClone(DEFAULT_CHANNELS);
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || parsed.length !== 4) throw new Error('bad data');
+      return parsed.map((x, i) => ({
+        name: DEFAULT_CHANNELS[i].name,
+        minutes: clampMinutes(Number(x.minutes))
+      }));
+    } catch {
+      return structuredClone(DEFAULT_CHANNELS);
+    }
+  }
+
+  function saveChannels() {
+    localStorage.setItem('tsq_channels_v1', JSON.stringify(channels));
+  }
+
+  function clampMinutes(n) {
+    if (!Number.isFinite(n)) return 60;
+    return Math.min(720, Math.max(1, Math.round(n)));
+  }
+
+  function currentTargetMs() {
+    return (testMode ? 15 : channels[currentIndex].minutes) * 60 * 1000;
+  }
+
+  function totalElapsedMs() {
+    if (isPlaying && playStartedAt !== null) {
+      return elapsedMs + (Date.now() - playStartedAt);
+    }
+    return elapsedMs;
+  }
+
+  function freezeClock() {
+    if (isPlaying && playStartedAt !== null) {
+      elapsedMs += Date.now() - playStartedAt;
+    }
+    playStartedAt = null;
+    isPlaying = false;
+  }
+
+  function startClock() {
+    if (!isPlaying) {
+      isPlaying = true;
+      playStartedAt = Date.now();
+    }
+  }
+
+  function resetClock() {
+    elapsedMs = 0;
+    playStartedAt = isPlaying ? Date.now() : null;
+  }
+
+  function formatMs(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  function setStatus(text, done = false) {
+    els.status.textContent = text;
+    els.status.classList.toggle('done', done);
+  }
+
+  function renderQueue() {
+    els.queue.innerHTML = '';
+    channels.forEach((ch, index) => {
+      const item = document.createElement('div');
+      item.className = 'qitem' + (index === currentIndex ? ' active' : '');
+
+      const n = document.createElement('div');
+      n.className = 'num';
+      n.textContent = String(index + 1);
+
+      const name = document.createElement('input');
+      name.value = ch.name.toUpperCase();
+      name.disabled = true;
+      name.setAttribute('aria-label', `Канал ${index + 1}`);
+
+      const mins = document.createElement('input');
+      mins.type = 'number';
+      mins.min = '1';
+      mins.max = '720';
+      mins.step = '1';
+      mins.value = String(ch.minutes);
+      mins.disabled = queueRunning || testMode;
+      mins.setAttribute('aria-label', `Минуты для ${ch.name}`);
+      mins.addEventListener('change', () => {
+        channels[index].minutes = clampMinutes(Number(mins.value));
+        mins.value = String(channels[index].minutes);
+        saveChannels();
+        render();
+      });
+
+      item.append(n, name, mins);
+      els.queue.appendChild(item);
+    });
+  }
+
+  function render() {
+    const ch = channels[currentIndex];
+    const target = currentTargetMs();
+    const elapsed = Math.min(totalElapsedMs(), target);
+    const pct = target > 0 ? Math.min(100, elapsed / target * 100) : 0;
+
+    els.currentName.textContent = ch.name.toUpperCase();
+    els.timeText.textContent = `${formatMs(elapsed)} / ${formatMs(target)}`;
+    els.progressBar.style.width = `${pct.toFixed(2)}%`;
+    els.openChannel.href = `https://www.twitch.tv/${encodeURIComponent(ch.name)}`;
+    els.pauseBtn.disabled = !queueRunning && !testMode;
+    els.nextBtn.disabled = testMode || (!queueRunning && finished);
+    els.startBtn.textContent = queueRunning ? 'RUNNING' : (finished ? 'START AGAIN' : 'START');
+    els.startBtn.disabled = !supportedHost || !playerReady || queueRunning || testMode;
+    els.testBtn.disabled = !supportedHost || !playerReady || queueRunning || testMode;
+
+    renderQueue();
+
+    if ((queueRunning || testMode) && elapsed >= target) {
+      completeCurrent();
+    }
+  }
+
+  function clearFailover() {
+    if (failoverTimer) clearTimeout(failoverTimer);
+    failoverTimer = null;
+  }
+
+  function armFailover(guardAtSchedule) {
+    clearFailover();
+    failoverTimer = setTimeout(() => {
+      if (guardAtSchedule !== switchGuard) return;
+      if (isPlaying) return;
+      if (testMode) {
+        setStatus('Канал не начал воспроизведение. Для теста выбери онлайн-канал и нажми PLAY в плеере.');
+        return;
+      }
+      if (queueRunning) skipOffline('Нет события PLAYING после переключения. Пропускаю канал.');
+    }, 20000);
+  }
+
+  function switchTo(index, reason = '') {
+    currentIndex = index;
+    finished = false;
+    freezeClock();
+    elapsedMs = 0;
+    switchGuard += 1;
+    const myGuard = switchGuard;
+    render();
+
+    if (!playerReady || !player) return;
+    clearFailover();
+    const ch = channels[currentIndex];
+    setStatus(reason || `Переключаюсь на ${ch.name.toUpperCase()}...`);
+    player.setChannel(ch.name);
+    armFailover(myGuard);
+  }
+
+  function advanceQueue(reason) {
+    if (currentIndex >= channels.length - 1) {
+      stopQueue('Очередь закончена. Все 4 канала пройдены.', true);
+      return;
+    }
+    switchTo(currentIndex + 1, reason);
+  }
+
+  function completeCurrent() {
+    freezeClock();
+    if (testMode) {
+      testMode = false;
+      clearFailover();
+      setStatus('15-минутный тест завершен. Открой Drops Inventory и сравни прогресс.', true);
+      render();
+      return;
+    }
+    if (queueRunning) {
+      advanceQueue(`Время ${channels[currentIndex].name.toUpperCase()} закончилось. Переключаюсь дальше.`);
+    }
+  }
+
+  function skipOffline(message) {
+    freezeClock();
+    allOfflineAttempts += 1;
+    if (allOfflineAttempts >= channels.length) {
+      stopQueue('Ни один канал из очереди не начал воспроизведение. Проверь, кто сейчас онлайн, и интернет.', false);
+      return;
+    }
+    if (currentIndex >= channels.length - 1) {
+      stopQueue('Дошел до конца очереди: оставшиеся каналы не начали воспроизведение.', false);
+      return;
+    }
+    switchTo(currentIndex + 1, message);
+  }
+
+  function stopQueue(message, done = false) {
+    freezeClock();
+    queueRunning = false;
+    testMode = false;
+    finished = done;
+    clearFailover();
+    if (playerReady && player) {
+      try { player.pause(); } catch (_) {}
+    }
+    setStatus(message, done);
+    render();
+  }
+
+  function startQueue() {
+    if (!playerReady || !player) return;
+    testMode = false;
+    queueRunning = true;
+    finished = false;
+    allOfflineAttempts = 0;
+    resetClock();
+    setStatus(`Запускаю ${channels[currentIndex].name.toUpperCase()}...`);
+    try { player.play(); } catch (_) {}
+    armFailover(switchGuard);
+    render();
+  }
+
+  function startTest() {
+    if (!playerReady || !player) return;
+    queueRunning = false;
+    testMode = true;
+    finished = false;
+    allOfflineAttempts = 0;
+    resetClock();
+    setStatus(`TEST: 15 минут на ${channels[currentIndex].name.toUpperCase()}. Таймер начнется после PLAYING.`);
+    try { player.play(); } catch (_) {}
+    armFailover(switchGuard);
+    render();
+  }
+
+  function pauseByUser() {
+    if (!playerReady || !player) return;
+    freezeClock();
+    queueRunning = false;
+    testMode = false;
+    clearFailover();
+    try { player.pause(); } catch (_) {}
+    setStatus('Остановлено пользователем. Для нового запуска нажми START.');
+    render();
+  }
+
+  els.startBtn.addEventListener('click', startQueue);
+  els.testBtn.addEventListener('click', startTest);
+  els.pauseBtn.addEventListener('click', pauseByUser);
+  els.nextBtn.addEventListener('click', () => {
+    if (testMode) return;
+    if (!queueRunning) {
+      if (currentIndex < channels.length - 1) switchTo(currentIndex + 1, 'Переключено вручную.');
+      return;
+    }
+    advanceQueue('Переключено вручную.');
+  });
+  els.resetBtn.addEventListener('click', () => {
+    stopQueue('Настройки сброшены.');
+    channels = structuredClone(DEFAULT_CHANNELS);
+    saveChannels();
+    currentIndex = 0;
+    elapsedMs = 0;
+    finished = false;
+    if (playerReady && player) player.setChannel(channels[0].name);
+    render();
+  });
+
+  if (supportedHost) {
+    try {
+      const embed = new Twitch.Embed('twitch-embed', {
+        width: '100%',
+        height: 480,
+        channel: channels[0].name,
+        layout: 'video',
+        autoplay: false,
+        allowfullscreen: true,
+        parent: [location.hostname]
+      });
+
+      embed.addEventListener(Twitch.Embed.VIDEO_READY, () => {
+        player = embed.getPlayer();
+        playerReady = true;
+        setStatus('Плеер готов. Убедись, что Twitch вошел в твой аккаунт, затем запусти TEST 15 MIN.');
+
+        player.addEventListener(Twitch.Player.PLAYING, () => {
+          clearFailover();
+          allOfflineAttempts = 0;
+          if (queueRunning || testMode) {
+            startClock();
+            setStatus(`${channels[currentIndex].name.toUpperCase()} играет. Таймер идет.`);
+          }
+          render();
+        });
+
+        player.addEventListener(Twitch.Player.PAUSE, () => {
+          freezeClock();
+          if (queueRunning || testMode) setStatus('Twitch-плеер на паузе. Таймер остановлен.');
+          render();
+        });
+
+        player.addEventListener(Twitch.Player.OFFLINE, () => {
+          freezeClock();
+          if (!(queueRunning || testMode)) return;
+          clearFailover();
+          const guard = switchGuard;
+          failoverTimer = setTimeout(() => {
+            if (guard !== switchGuard) return;
+            if (testMode) {
+              setStatus('Этот канал сейчас OFFLINE. Для теста нажми NEXT и выбери онлайн-канал.');
+            } else if (queueRunning) {
+              skipOffline(`${channels[currentIndex].name.toUpperCase()} OFFLINE. Пропускаю.`);
+            }
+          }, 2500);
+          render();
+        });
+
+        player.addEventListener(Twitch.Player.ONLINE, () => {
+          clearFailover();
+          if (queueRunning || testMode) {
+            setStatus(`${channels[currentIndex].name.toUpperCase()} ONLINE. Жду PLAYING...`);
+            armFailover(switchGuard);
+          }
+        });
+
+        player.addEventListener(Twitch.Player.PLAYBACK_BLOCKED, () => {
+          freezeClock();
+          clearFailover();
+          setStatus('Браузер заблокировал автоматическое воспроизведение. Нажми PLAY прямо в Twitch-плеере.');
+          render();
+        });
+
+        render();
+      });
+    } catch (err) {
+      setStatus(`Ошибка загрузки Twitch Embed: ${err && err.message ? err.message : String(err)}`);
+    }
+  }
+
+  renderTimer = setInterval(render, 500);
+  window.addEventListener('beforeunload', () => {
+    clearInterval(renderTimer);
+    clearFailover();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
