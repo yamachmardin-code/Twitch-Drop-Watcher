@@ -4,62 +4,89 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
-  <title>Twitch Stream Queue</title>
+  <title>Twitch Drop Watcher</title>
   <style>
-    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #f3f3f3; background: #111; }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #111; color: #f3f3f3; }
-    .app { width: min(980px, 100%); margin: 0 auto; padding: 14px; }
-    h1 { margin: 0 0 6px; font-size: 24px; }
-    .sub { margin: 0 0 14px; color: #bdbdbd; font-size: 14px; line-height: 1.4; }
-    .warning { display:none; padding: 12px; margin: 0 0 14px; border: 1px solid #5d4a00; border-radius: 10px; background: #251f00; color: #ffe79a; line-height: 1.4; }
-    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-    .card { background: #191919; border: 1px solid #303030; border-radius: 12px; padding: 12px; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .between { justify-content: space-between; }
-    .label { color: #aaa; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
-    .current { font-size: 24px; font-weight: 750; margin-top: 3px; overflow-wrap: anywhere; }
-    .timer { font-variant-numeric: tabular-nums; font-size: 32px; font-weight: 750; margin-top: 2px; }
-    .status { margin-top: 6px; color: #cfcfcf; min-height: 22px; }
-    .queue { display: grid; gap: 8px; margin-top: 10px; }
-    .qitem { display: grid; grid-template-columns: 34px minmax(0,1fr) 92px; gap: 8px; align-items: center; padding: 9px; border: 1px solid #2b2b2b; border-radius: 9px; }
-    .qitem.active { border-color: #777; background: #202020; }
-    .num { color: #888; text-align: center; }
-    input { width: 100%; min-width: 0; border: 1px solid #444; border-radius: 8px; padding: 9px 10px; background:#101010; color:#fff; font: inherit; }
-    input[type="number"] { text-align: right; }
-    button, a.btn { border: 1px solid #444; border-radius: 9px; background: #252525; color:#fff; padding: 10px 13px; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; display:inline-flex; align-items:center; justify-content:center; }
+    :root { font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#f3f3f3; background:#111; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#111; color:#f3f3f3; }
+    .app { width:min(1040px,100%); margin:0 auto; padding:14px; }
+    h1 { margin:0 0 6px; font-size:24px; }
+    h2 { margin:0 0 8px; font-size:18px; }
+    .sub { margin:0 0 14px; color:#bdbdbd; font-size:14px; line-height:1.4; }
+    .warning { padding:10px 12px; margin:0 0 12px; border:1px solid #5d4a00; border-radius:10px; background:#251f00; color:#ffe79a; line-height:1.4; }
+    .hidden { display:none !important; }
+    .grid { display:grid; grid-template-columns:1fr; gap:12px; }
+    .card { background:#191919; border:1px solid #303030; border-radius:12px; padding:12px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .between { justify-content:space-between; }
+    .label { color:#aaa; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+    .current { font-size:24px; font-weight:750; margin-top:3px; overflow-wrap:anywhere; }
+    .dropname { font-size:15px; color:#c9c9c9; margin-top:2px; }
+    .timer { font-variant-numeric:tabular-nums; font-size:32px; font-weight:750; margin-top:5px; }
+    .status { margin-top:6px; color:#cfcfcf; min-height:22px; line-height:1.35; }
+    .queue,.stack,.catalog { display:grid; gap:8px; margin-top:10px; }
+    .qitem { display:grid; grid-template-columns:28px minmax(0,1fr) 76px 40px 40px 40px; gap:6px; align-items:center; padding:8px; border:1px solid #2b2b2b; border-radius:9px; }
+    .qitem.active { border-color:#777; background:#202020; }
+    .qmain { min-width:0; }
+    .qdrop { color:#aaa; font-size:11px; padding:2px 3px 0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .num { color:#888; text-align:center; }
+    input { width:100%; min-width:0; border:1px solid #444; border-radius:8px; padding:9px 10px; background:#101010; color:#fff; font:inherit; }
+    input[type="number"] { text-align:right; }
+    button,a.btn { border:1px solid #444; border-radius:9px; background:#252525; color:#fff; padding:10px 13px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
+    button.icon { padding:8px 0; min-width:38px; }
     button.primary { background:#f0f0f0; color:#111; border-color:#f0f0f0; }
+    button.good { border-color:#406a40; }
+    button.danger { color:#ffb5b5; }
     button:disabled { opacity:.45; cursor:not-allowed; }
-    .controls { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:8px; margin-top:12px; }
-    .progress { height: 9px; background:#2a2a2a; border-radius:999px; overflow:hidden; margin-top:10px; }
+    .controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px; }
+    .progress { height:9px; background:#2a2a2a; border-radius:999px; overflow:hidden; margin-top:10px; }
     .bar { height:100%; width:0%; background:#cfcfcf; transition:width .25s linear; }
-    .player-shell { overflow-x:auto; }
-    #twitch-embed { min-width:400px; min-height:300px; width:100%; }
+    .player-shell { overflow:hidden; padding:0; background:#000; }
+    #twitch-embed { min-width:400px; min-height:300px; width:100%; height:480px; }
+    #twitch-embed iframe { display:block; }
     .small { color:#a9a9a9; font-size:12px; line-height:1.45; }
-    .testbox { margin-top:10px; padding:10px; border-radius:9px; background:#151515; border:1px dashed #3d3d3d; }
+    .note { margin-top:10px; padding:10px; border-radius:9px; background:#151515; border:1px dashed #3d3d3d; }
     .done { color:#aef0ae; }
-    @media (min-width: 760px) {
-      .grid { grid-template-columns: 380px minmax(0,1fr); align-items:start; }
-      .controls { grid-template-columns: repeat(4, minmax(0,1fr)); }
-    }
+    .addbar { display:grid; grid-template-columns:minmax(0,1fr) 90px auto; gap:8px; margin-top:10px; }
+    .error { color:#ffb5b5; min-height:18px; margin-top:6px; }
+    .dropitem { padding:10px; border:1px solid #303030; border-radius:9px; background:#151515; }
+    .dropitem strong { display:block; margin-bottom:3px; }
+    .dropmeta { color:#aaa; font-size:12px; line-height:1.35; }
+    .dropactions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .catalog-item { padding:10px; border:1px solid #2d2d2d; border-radius:9px; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
+    .chip { padding:7px 9px; font-size:12px; }
+    details summary { cursor:pointer; font-weight:700; }
+    .general { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:10px; }
+    .general div { border:1px solid #2e2e2e; border-radius:8px; padding:8px; font-size:12px; }
+    @media (min-width:760px) { .grid { grid-template-columns:400px minmax(0,1fr); align-items:start; } .controls { grid-template-columns:repeat(4,minmax(0,1fr)); } .general { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+    @media (max-width:620px) { .qitem { grid-template-columns:24px minmax(0,1fr) 68px 36px 36px 36px; gap:4px; } .qitem button.icon { min-width:34px; padding:8px 0; } .addbar { grid-template-columns:minmax(0,1fr) 78px; } .addbar button { grid-column:1 / -1; } }
+
+    body.pip-mode { overflow:hidden; background:#000; }
+    body.pip-mode .app { width:400px; min-width:400px; height:300px; padding:0; margin:0; }
+    body.pip-mode .chrome { display:none !important; }
+    body.pip-mode .grid { display:block; }
+    body.pip-mode .player-wrap { position:fixed; inset:0; margin:0 !important; padding:0; border:0; border-radius:0; width:400px; height:300px; overflow:hidden; background:#000; }
+    body.pip-mode #twitch-embed { width:400px !important; height:300px !important; min-width:400px; min-height:300px; }
   </style>
 </head>
 <body>
 <div class="app">
-  <h1>Twitch Stream Queue</h1>
-  <p class="sub">Один официальный Twitch-плеер, один канал за раз, очередь и автоматическое переключение через официальный Twitch Embed API.</p>
-
-  <div id="httpsWarning" class="warning">
-    Twitch Embed требует HTTPS-домен. Не открывай этот файл напрямую через <b>file://</b>. Залей его как <b>index.html</b> на GitHub Pages и открой выданный HTTPS-адрес.
+  <div class="chrome">
+    <h1>Twitch Drop Watcher</h1>
+    <p class="sub">Один официальный Twitch-плеер, один канал за раз. Очередь, текущий Rust Isles каталог и история выполненных дропсов.</p>
+    <div id="campaignBox" class="warning"></div>
+    <div id="httpsWarning" class="warning hidden">Twitch Embed требует HTTPS. Открывай страницу через GitHub Pages, а не через file://.</div>
   </div>
 
   <div class="grid">
-    <section class="card">
+    <section class="card chrome">
       <div class="label">Сейчас</div>
       <div id="currentName" class="current">PETERPARK</div>
-      <div id="timeText" class="timer">00:00 / 60:00</div>
+      <div id="currentDrop" class="dropname">Double Barrel Shotgun</div>
+      <div id="timeText" class="timer">00:00 / 01:00:00</div>
       <div class="progress"><div id="progressBar" class="bar"></div></div>
-      <div id="status" class="status">Готово. Войди в Twitch внутри плеера и нажми START.</div>
+      <div id="status" class="status">Готово. Нажми START.</div>
 
       <div class="controls">
         <button id="startBtn" class="primary">START</button>
@@ -71,31 +98,55 @@
       <div class="row" style="margin-top:10px">
         <a class="btn" href="https://www.twitch.tv/drops/inventory" target="_blank" rel="noopener noreferrer">DROPS INVENTORY</a>
         <a id="openChannel" class="btn" href="https://www.twitch.tv/peterpark" target="_blank" rel="noopener noreferrer">OPEN ON TWITCH</a>
+        <a class="btn" href="https://www.twitch.tv/login" target="_blank" rel="noopener noreferrer">TWITCH LOGIN</a>
       </div>
 
-      <div class="testbox small">
-        <b>Перед первым нормальным запуском:</b> открой Drops Inventory и запомни процент. Потом нажми TEST 15 MIN. После теста снова открой Inventory. Если прогресс вырос, этот способ у тебя реально засчитывается. Если нет — не трать на него оставшееся время кампании.
-      </div>
-
-      <div class="small" style="margin-top:10px">
-        Таймер идет только после события <b>PLAYING</b> от официального Twitch-плеера. При PAUSE/OFFLINE таймер останавливается. Оффлайн-канал автоматически пропускается. После последнего канала очередь останавливается — бесконечного автолупа нет.
-      </div>
+      <div class="note small"><b>Важно:</b> приложение не читает Twitch Inventory и не нажимает Claim автоматически. Когда наше время закончено, стример уходит из рабочей очереди в "Готово к проверке". После проверки Inventory нажми "ПОЛУЧЕН" — тогда этот дроп и все альтернативные каналы для него уйдут в архив.</div>
     </section>
 
     <section>
-      <div class="card player-shell">
-        <div id="twitch-embed"></div>
-      </div>
+      <div class="card player-shell player-wrap"><div id="twitch-embed"></div></div>
 
-      <div class="card" style="margin-top:12px">
+      <div class="card chrome" style="margin-top:12px">
         <div class="row between">
-          <div>
-            <div class="label">Очередь</div>
-            <div class="small">Можно поменять минуты до START. Названия каналов уже внесены.</div>
-          </div>
+          <div><div class="label">Активная очередь</div><div class="small">Завершенный по времени канал автоматически убирается отсюда.</div></div>
           <button id="resetBtn">RESET</button>
         </div>
         <div id="queue" class="queue"></div>
+        <div id="emptyQueue" class="small hidden" style="margin-top:10px">Активная очередь пустая.</div>
+
+        <div class="addbar">
+          <input id="newName" autocomplete="off" placeholder="название канала" aria-label="Новый Twitch канал" />
+          <input id="newMinutes" type="number" min="1" max="720" value="60" aria-label="Минуты" />
+          <button id="addBtn" class="primary">+ ДОБАВИТЬ</button>
+        </div>
+        <div id="addError" class="error small"></div>
+      </div>
+
+      <div class="card chrome" style="margin-top:12px">
+        <h2>Готово к проверке</h2>
+        <div class="small">Время просмотра выполнено. Twitch Inventory остается источником истины.</div>
+        <div id="readyList" class="stack"></div>
+        <div id="readyEmpty" class="small">Пока пусто.</div>
+      </div>
+
+      <div class="card chrome" style="margin-top:12px">
+        <h2>Получены</h2>
+        <div id="claimedList" class="stack"></div>
+        <div id="claimedEmpty" class="small">Пока ничего не отмечено как полученное.</div>
+      </div>
+
+      <div class="card chrome" style="margin-top:12px">
+        <details open>
+          <summary>Rust Isles — эксклюзивные дропсы</summary>
+          <div class="small" style="margin-top:6px">Каталог Round 53. Нажми на имя стримера, чтобы добавить его в очередь. Если один дроп дают два стримера, достаточно одного из них.</div>
+          <div id="catalog" class="catalog"></div>
+        </details>
+        <details style="margin-top:12px">
+          <summary>Общие Rust Isles дропсы</summary>
+          <div class="small" style="margin-top:6px">Они идут на любом Rust-стриме с Drops Enabled. Наш счетчик ниже не является Twitch Inventory.</div>
+          <div id="generalDrops" class="general"></div>
+        </details>
       </div>
     </section>
   </div>
@@ -106,29 +157,51 @@
 (() => {
   'use strict';
 
-  const DEFAULT_CHANNELS = [
-    { name: 'peterpark', minutes: 60 },
-    { name: 'fancyorb', minutes: 60 },
-    { name: 'mrwobblestwitch', minutes: 60 },
-    { name: 'zchum', minutes: 60 }
+  const CAMPAIGN = {
+    id:'rust-isles-r53',
+    name:'Rust Isles — Round 53',
+    start:'2026-09-24T19:00:00Z',
+    end:'2026-10-04T23:59:00Z',
+    source:'https://twitch.facepunch.com/'
+  };
+  const DROP_CATALOG = [
+    {id:'rocket-launcher', item:'Rocket Launcher', minutes:60, channels:['geega','blooprint']},
+    {id:'assault-rifle', item:'Assault Rifle', minutes:60, channels:['hjune','hutnik']},
+    {id:'semi-automatic-rifle', item:'Semi-automatic Rifle', minutes:60, channels:['disguisedtoast']},
+    {id:'double-barrel-shotgun', item:'Double Barrel Shotgun', minutes:60, channels:['peterpark']},
+    {id:'boonie-hat', item:'Boonie Hat', minutes:60, channels:['fuslie','sven']},
+    {id:'small-backpack', item:'Small Backpack', minutes:60, channels:['abe']},
+    {id:'furnace', item:'Furnace', minutes:60, channels:['esfandtv']},
+    {id:'wooden-door', item:'Wooden Door', minutes:60, channels:['xchocobars']},
+    {id:'large-wood-box-streamer', item:'Large Wood Box', minutes:60, channels:['ironmouse']},
+    {id:'salvaged-sword', item:'Salvaged Sword', minutes:60, channels:['willneff']},
+    {id:'garage-door', item:'Garage Door', minutes:60, channels:['foolish']},
+    {id:'locker', item:'Locker', minutes:60, channels:['tinakitten']},
+    {id:'metal-facemask', item:'Metal Facemask', minutes:60, channels:['cyr','mrwobblestwitch']},
+    {id:'metal-chestplate', item:'Metal Chestplate', minutes:60, channels:['aceu','zchum']},
+    {id:'vagabond-jacket', item:'Vagabond Jacket', minutes:60, channels:['ledoo','fancyorb']},
+    {id:'tactical-gloves', item:'Tactical Gloves', minutes:60, channels:['itsryanhiga','welyn']}
   ];
+  const GENERAL_DROPS = [
+    ['Large Wood Box',60],['Auto Turret',120],['Small Box',180],['Pants',240],['Work Boots',300],['Hoodie',360]
+  ];
+  const DROP_BY_CHANNEL = new Map();
+  DROP_CATALOG.forEach(d => d.channels.forEach(ch => DROP_BY_CHANNEL.set(ch,d)));
 
+  const DEFAULT_NAMES = ['peterpark','fancyorb','mrwobblestwitch','zchum'];
+  const STORAGE_KEY = 'tdw_state_v3';
+  const V2_KEY = 'tdw_channels_v2';
+  const MAX_CHANNELS = 50;
+  const CHANNEL_RE = /^[a-zA-Z0-9_]{1,25}$/;
+  const $ = id => document.getElementById(id);
   const els = {
-    httpsWarning: document.getElementById('httpsWarning'),
-    currentName: document.getElementById('currentName'),
-    timeText: document.getElementById('timeText'),
-    progressBar: document.getElementById('progressBar'),
-    status: document.getElementById('status'),
-    startBtn: document.getElementById('startBtn'),
-    pauseBtn: document.getElementById('pauseBtn'),
-    nextBtn: document.getElementById('nextBtn'),
-    testBtn: document.getElementById('testBtn'),
-    resetBtn: document.getElementById('resetBtn'),
-    openChannel: document.getElementById('openChannel'),
-    queue: document.getElementById('queue')
+    campaignBox:$('campaignBox'), httpsWarning:$('httpsWarning'), currentName:$('currentName'), currentDrop:$('currentDrop'), timeText:$('timeText'), progressBar:$('progressBar'), status:$('status'),
+    startBtn:$('startBtn'), pauseBtn:$('pauseBtn'), nextBtn:$('nextBtn'), testBtn:$('testBtn'), resetBtn:$('resetBtn'), openChannel:$('openChannel'),
+    queue:$('queue'), emptyQueue:$('emptyQueue'), newName:$('newName'), newMinutes:$('newMinutes'), addBtn:$('addBtn'), addError:$('addError'),
+    readyList:$('readyList'), readyEmpty:$('readyEmpty'), claimedList:$('claimedList'), claimedEmpty:$('claimedEmpty'), catalog:$('catalog'), generalDrops:$('generalDrops')
   };
 
-  let channels = loadChannels();
+  let state = loadState();
   let currentIndex = 0;
   let player = null;
   let playerReady = false;
@@ -137,366 +210,246 @@
   let isPlaying = false;
   let elapsedMs = 0;
   let playStartedAt = null;
-  let switchGuard = 0;
-  let failoverTimer = null;
+  let offlineTimer = null;
   let renderTimer = null;
-  let allOfflineAttempts = 0;
   let finished = false;
+  let offlineSeen = new Set();
 
   const supportedHost = location.protocol === 'https:';
-  if (!supportedHost) {
-    els.httpsWarning.style.display = 'block';
-    els.startBtn.disabled = true;
-    els.testBtn.disabled = true;
-  }
+  if (!supportedHost) { els.httpsWarning.classList.remove('hidden'); els.startBtn.disabled=true; els.testBtn.disabled=true; }
 
-  function loadChannels() {
-    try {
-      const raw = localStorage.getItem('tsq_channels_v1');
-      if (!raw) return structuredClone(DEFAULT_CHANNELS);
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed) || parsed.length !== 4) throw new Error('bad data');
-      return parsed.map((x, i) => ({
-        name: DEFAULT_CHANNELS[i].name,
-        minutes: clampMinutes(Number(x.minutes))
-      }));
-    } catch {
-      return structuredClone(DEFAULT_CHANNELS);
+  function uid(){ return 'e_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8); }
+  function clampMinutes(n){ if(!Number.isFinite(n)) return 60; return Math.min(720,Math.max(1,Math.round(n))); }
+  function sanitizeName(v){ return String(v||'').trim().replace(/^@/,'').toLowerCase(); }
+  function catalogFor(name){ return DROP_BY_CHANNEL.get(sanitizeName(name)) || null; }
+  function makeEntry(name, minutes){
+    name=sanitizeName(name); const d=catalogFor(name);
+    return { id:uid(), name, minutes:clampMinutes(minutes || (d?d.minutes:60)), dropId:d?d.id:null, dropName:d?d.item:null, elapsedMs:0 };
+  }
+  function defaultState(){ return {active:DEFAULT_NAMES.map(n=>makeEntry(n,60)), ready:[], claimed:[]}; }
+  function normalizeList(list){
+    if(!Array.isArray(list)) return [];
+    return list.map(x=>{
+      const name=sanitizeName(x&&x.name); if(!CHANNEL_RE.test(name)) return null;
+      const d=catalogFor(name);
+      return {id:String(x.id||uid()), name, minutes:clampMinutes(Number(x.minutes)||60), dropId:x.dropId || (d?d.id:null), dropName:x.dropName || (d?d.item:null), elapsedMs:Math.max(0,Number(x.elapsedMs)||0), completedAt:x.completedAt||null, claimedAt:x.claimedAt||null};
+    }).filter(Boolean);
+  }
+  function loadState(){
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY);
+      if(raw){ const parsed=JSON.parse(raw); return {active:normalizeList(parsed.active), ready:normalizeList(parsed.ready), claimed:normalizeList(parsed.claimed)}; }
+      const v2=localStorage.getItem(V2_KEY);
+      if(v2){ const arr=JSON.parse(v2); if(Array.isArray(arr)&&arr.length){ return {active:arr.map(x=>makeEntry(x.name,x.minutes)),ready:[],claimed:[]}; } }
+    }catch(_){ }
+    return defaultState();
+  }
+  function saveState(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); }
+  function currentEntry(){ return state.active[currentIndex] || null; }
+  function currentTargetMs(){ const e=currentEntry(); return e ? (testMode?15:e.minutes)*60*1000 : 0; }
+  function storedElapsed(){ const e=currentEntry(); return testMode ? elapsedMs : (e ? Math.max(0,Number(e.elapsedMs)||0) : 0); }
+  function totalElapsedMs(){ return storedElapsed() + (isPlaying&&playStartedAt!==null ? Date.now()-playStartedAt : 0); }
+  function freezeClock(){
+    if(isPlaying&&playStartedAt!==null){
+      const delta=Math.max(0,Date.now()-playStartedAt);
+      if(testMode) elapsedMs+=delta;
+      else { const e=currentEntry(); if(e){ e.elapsedMs=Math.max(0,Number(e.elapsedMs)||0)+delta; saveState(); } }
     }
+    playStartedAt=null; isPlaying=false;
+  }
+  function startClock(){ if(!isPlaying){ isPlaying=true; playStartedAt=Date.now(); } }
+  function resetTestClock(){ elapsedMs=0; playStartedAt=isPlaying?Date.now():null; }
+  function formatMs(ms){ const t=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60; return h>0?`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+  function setStatus(text,done=false){ els.status.textContent=text; els.status.classList.toggle('done',done); }
+  function canEdit(){ return !queueRunning&&!testMode; }
+  function dropLabel(e){ return e&&e.dropName ? e.dropName : 'Пользовательский канал'; }
+  function isDropClaimed(dropId){ return !!dropId && state.claimed.some(x=>x.dropId===dropId); }
+  function hasDropPending(dropId){ return !!dropId && (state.active.some(x=>x.dropId===dropId) || state.ready.some(x=>x.dropId===dropId)); }
+
+  function renderCampaign(){
+    const now=Date.now(), end=Date.parse(CAMPAIGN.end);
+    if(now>end){ els.campaignBox.textContent=`Каталог ${CAMPAIGN.name} завершен. Не добавляй новые каналы по этому списку без обновления данных.`; return; }
+    const left=end-now, d=Math.floor(left/86400000), h=Math.floor((left%86400000)/3600000), m=Math.floor((left%3600000)/60000);
+    els.campaignBox.textContent=`${CAMPAIGN.name}: до конца примерно ${d}д ${h}ч ${m}м. Каталог зафиксирован по официальной странице Facepunch.`;
   }
 
-  function saveChannels() {
-    localStorage.setItem('tsq_channels_v1', JSON.stringify(channels));
-  }
-
-  function clampMinutes(n) {
-    if (!Number.isFinite(n)) return 60;
-    return Math.min(720, Math.max(1, Math.round(n)));
-  }
-
-  function currentTargetMs() {
-    return (testMode ? 15 : channels[currentIndex].minutes) * 60 * 1000;
-  }
-
-  function totalElapsedMs() {
-    if (isPlaying && playStartedAt !== null) {
-      return elapsedMs + (Date.now() - playStartedAt);
-    }
-    return elapsedMs;
-  }
-
-  function freezeClock() {
-    if (isPlaying && playStartedAt !== null) {
-      elapsedMs += Date.now() - playStartedAt;
-    }
-    playStartedAt = null;
-    isPlaying = false;
-  }
-
-  function startClock() {
-    if (!isPlaying) {
-      isPlaying = true;
-      playStartedAt = Date.now();
-    }
-  }
-
-  function resetClock() {
-    elapsedMs = 0;
-    playStartedAt = isPlaying ? Date.now() : null;
-  }
-
-  function formatMs(ms) {
-    const total = Math.max(0, Math.floor(ms / 1000));
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  }
-
-  function setStatus(text, done = false) {
-    els.status.textContent = text;
-    els.status.classList.toggle('done', done);
-  }
-
-  function renderQueue() {
-    els.queue.innerHTML = '';
-    channels.forEach((ch, index) => {
-      const item = document.createElement('div');
-      item.className = 'qitem' + (index === currentIndex ? ' active' : '');
-
-      const n = document.createElement('div');
-      n.className = 'num';
-      n.textContent = String(index + 1);
-
-      const name = document.createElement('input');
-      name.value = ch.name.toUpperCase();
-      name.disabled = true;
-      name.setAttribute('aria-label', `Канал ${index + 1}`);
-
-      const mins = document.createElement('input');
-      mins.type = 'number';
-      mins.min = '1';
-      mins.max = '720';
-      mins.step = '1';
-      mins.value = String(ch.minutes);
-      mins.disabled = queueRunning || testMode;
-      mins.setAttribute('aria-label', `Минуты для ${ch.name}`);
-      mins.addEventListener('change', () => {
-        channels[index].minutes = clampMinutes(Number(mins.value));
-        mins.value = String(channels[index].minutes);
-        saveChannels();
-        render();
+  function renderQueue(){
+    els.queue.innerHTML='';
+    els.emptyQueue.classList.toggle('hidden',state.active.length>0);
+    state.active.forEach((ch,index)=>{
+      const item=document.createElement('div'); item.className='qitem'+(index===currentIndex?' active':'');
+      const n=document.createElement('div'); n.className='num'; n.textContent=String(index+1);
+      const main=document.createElement('div'); main.className='qmain';
+      const name=document.createElement('input'); name.value=ch.name.toUpperCase(); name.disabled=!canEdit(); name.setAttribute('aria-label',`Канал ${index+1}`);
+      const dl=document.createElement('div'); dl.className='qdrop'; dl.textContent=dropLabel(ch);
+      name.addEventListener('change',()=>{
+        const v=sanitizeName(name.value);
+        if(!CHANNEL_RE.test(v)){ name.value=ch.name.toUpperCase(); setStatus('Название канала может содержать только буквы, цифры и _.'); return; }
+        if(state.active.some((x,i)=>i!==index&&x.name===v)){ name.value=ch.name.toUpperCase(); setStatus('Такой канал уже есть в очереди.'); return; }
+        const d=catalogFor(v);
+        if(d && isDropClaimed(d.id)){ name.value=ch.name.toUpperCase(); setStatus(`${d.item} уже отмечен как полученный.`); return; }
+        ch.name=v; ch.dropId=d?d.id:null; ch.dropName=d?d.item:null; if(d) ch.minutes=d.minutes; saveState();
+        if(index===currentIndex&&playerReady&&!queueRunning&&!testMode) player.setChannel(v); render();
       });
-
-      item.append(n, name, mins);
-      els.queue.appendChild(item);
+      main.append(name,dl);
+      const mins=document.createElement('input'); mins.type='number'; mins.min='1'; mins.max='720'; mins.step='1'; mins.value=String(ch.minutes); mins.disabled=!canEdit(); mins.setAttribute('aria-label',`Минуты для ${ch.name}`);
+      mins.addEventListener('change',()=>{ ch.minutes=clampMinutes(Number(mins.value)); saveState(); render(); });
+      const up=iconButton('↑','Выше',()=>moveChannel(index,-1));
+      const down=iconButton('↓','Ниже',()=>moveChannel(index,1));
+      const del=iconButton('×','Удалить',()=>removeChannel(index),'danger');
+      up.disabled=!canEdit()||index===0; down.disabled=!canEdit()||index===state.active.length-1; del.disabled=!canEdit();
+      item.append(n,main,mins,up,down,del); els.queue.appendChild(item);
     });
   }
+  function iconButton(text,label,fn,extra=''){ const b=document.createElement('button'); b.type='button'; b.className='icon '+extra; b.textContent=text; b.title=label; b.setAttribute('aria-label',label); b.addEventListener('click',fn); return b; }
+  function moveChannel(i,delta){ if(!canEdit()) return; const j=i+delta; if(j<0||j>=state.active.length) return; [state.active[i],state.active[j]]=[state.active[j],state.active[i]]; if(currentIndex===i) currentIndex=j; else if(currentIndex===j) currentIndex=i; saveState(); render(); }
+  function removeChannel(i){ if(!canEdit()) return; state.active.splice(i,1); if(currentIndex>=state.active.length) currentIndex=Math.max(0,state.active.length-1); saveState(); if(playerReady&&currentEntry()) player.setChannel(currentEntry().name); render(); }
 
-  function render() {
-    const ch = channels[currentIndex];
-    const target = currentTargetMs();
-    const elapsed = Math.min(totalElapsedMs(), target);
-    const pct = target > 0 ? Math.min(100, elapsed / target * 100) : 0;
-
-    els.currentName.textContent = ch.name.toUpperCase();
-    els.timeText.textContent = `${formatMs(elapsed)} / ${formatMs(target)}`;
-    els.progressBar.style.width = `${pct.toFixed(2)}%`;
-    els.openChannel.href = `https://www.twitch.tv/${encodeURIComponent(ch.name)}`;
-    els.pauseBtn.disabled = !queueRunning && !testMode;
-    els.nextBtn.disabled = testMode || (!queueRunning && finished);
-    els.startBtn.textContent = queueRunning ? 'RUNNING' : (finished ? 'START AGAIN' : 'START');
-    els.startBtn.disabled = !supportedHost || !playerReady || queueRunning || testMode;
-    els.testBtn.disabled = !supportedHost || !playerReady || queueRunning || testMode;
-
-    renderQueue();
-
-    if ((queueRunning || testMode) && elapsed >= target) {
-      completeCurrent();
-    }
+  function addChannelByName(rawName, minutesOverride=null){
+    els.addError.textContent='';
+    if(!canEdit()) return false;
+    const total=state.active.length+state.ready.length+state.claimed.length;
+    if(total>=MAX_CHANNELS){ els.addError.textContent=`Максимум ${MAX_CHANNELS} записей.`; return false; }
+    const name=sanitizeName(rawName), d=catalogFor(name), minutes=clampMinutes(minutesOverride || (d?d.minutes:60));
+    if(!CHANNEL_RE.test(name)){ els.addError.textContent='Проверь название канала: только буквы, цифры и _.'; return false; }
+    if(state.active.some(x=>x.name===name) || state.ready.some(x=>x.name===name)){ els.addError.textContent='Этот канал уже есть.'; return false; }
+    if(d && isDropClaimed(d.id)){ els.addError.textContent=`${d.item} уже отмечен как полученный.`; return false; }
+    if(d && hasDropPending(d.id)){ els.addError.textContent=`${d.item} уже есть в активных/готовых через другого стримера.`; return false; }
+    state.active.push(makeEntry(name,minutes)); saveState(); render(); return true;
   }
+  function addChannel(){ if(addChannelByName(els.newName.value,Number(els.newMinutes.value))){ els.newName.value=''; els.newMinutes.value='60'; } }
 
-  function clearFailover() {
-    if (failoverTimer) clearTimeout(failoverTimer);
-    failoverTimer = null;
+  function renderReady(){
+    els.readyList.innerHTML=''; els.readyEmpty.classList.toggle('hidden',state.ready.length>0);
+    state.ready.forEach(item=>{
+      const box=document.createElement('div'); box.className='dropitem';
+      const title=document.createElement('strong'); title.textContent=item.dropName || item.name.toUpperCase();
+      const meta=document.createElement('div'); meta.className='dropmeta'; meta.textContent=`${item.name.toUpperCase()} • наше время выполнено (${item.minutes} мин)`;
+      const actions=document.createElement('div'); actions.className='dropactions';
+      const inv=document.createElement('a'); inv.className='btn'; inv.href='https://www.twitch.tv/drops/inventory'; inv.target='_blank'; inv.rel='noopener noreferrer'; inv.textContent='ПРОВЕРИТЬ INVENTORY';
+      const got=document.createElement('button'); got.className='good'; got.textContent='ПОЛУЧЕН'; got.addEventListener('click',()=>markClaimed(item.id));
+      const retry=document.createElement('button'); retry.textContent='ВЕРНУТЬ В ОЧЕРЕДЬ'; retry.addEventListener('click',()=>restoreReady(item.id));
+      actions.append(inv,got,retry); box.append(title,meta,actions); els.readyList.appendChild(box);
+    });
   }
-
-  function armFailover(guardAtSchedule) {
-    clearFailover();
-    failoverTimer = setTimeout(() => {
-      if (guardAtSchedule !== switchGuard) return;
-      if (isPlaying) return;
-      if (testMode) {
-        setStatus('Канал не начал воспроизведение. Для теста выбери онлайн-канал и нажми PLAY в плеере.');
-        return;
-      }
-      if (queueRunning) skipOffline('Нет события PLAYING после переключения. Пропускаю канал.');
-    }, 20000);
+  function renderClaimed(){
+    els.claimedList.innerHTML=''; els.claimedEmpty.classList.toggle('hidden',state.claimed.length>0);
+    state.claimed.forEach(item=>{
+      const box=document.createElement('div'); box.className='dropitem';
+      const title=document.createElement('strong'); title.textContent='✓ '+(item.dropName || item.name.toUpperCase());
+      const meta=document.createElement('div'); meta.className='dropmeta'; meta.textContent=`через ${item.name.toUpperCase()}`;
+      box.append(title,meta); els.claimedList.appendChild(box);
+    });
   }
-
-  function switchTo(index, reason = '') {
-    currentIndex = index;
-    finished = false;
-    freezeClock();
-    elapsedMs = 0;
-    switchGuard += 1;
-    const myGuard = switchGuard;
-    render();
-
-    if (!playerReady || !player) return;
-    clearFailover();
-    const ch = channels[currentIndex];
-    setStatus(reason || `Переключаюсь на ${ch.name.toUpperCase()}...`);
-    player.setChannel(ch.name);
-    armFailover(myGuard);
-  }
-
-  function advanceQueue(reason) {
-    if (currentIndex >= channels.length - 1) {
-      stopQueue('Очередь закончена. Все 4 канала пройдены.', true);
-      return;
+  function markClaimed(id){
+    const idx=state.ready.findIndex(x=>x.id===id); if(idx<0) return;
+    const item=state.ready.splice(idx,1)[0]; item.claimedAt=Date.now(); state.claimed.push(item);
+    if(item.dropId){
+      state.active=state.active.filter(x=>x.dropId!==item.dropId);
+      state.ready=state.ready.filter(x=>x.id===item.id || x.dropId!==item.dropId);
     }
-    switchTo(currentIndex + 1, reason);
-  }
-
-  function completeCurrent() {
-    freezeClock();
-    if (testMode) {
-      testMode = false;
-      clearFailover();
-      setStatus('15-минутный тест завершен. Открой Drops Inventory и сравни прогресс.', true);
-      render();
-      return;
-    }
-    if (queueRunning) {
-      advanceQueue(`Время ${channels[currentIndex].name.toUpperCase()} закончилось. Переключаюсь дальше.`);
-    }
-  }
-
-  function skipOffline(message) {
-    freezeClock();
-    allOfflineAttempts += 1;
-    if (allOfflineAttempts >= channels.length) {
-      stopQueue('Ни один канал из очереди не начал воспроизведение. Проверь, кто сейчас онлайн, и интернет.', false);
-      return;
-    }
-    if (currentIndex >= channels.length - 1) {
-      stopQueue('Дошел до конца очереди: оставшиеся каналы не начали воспроизведение.', false);
-      return;
-    }
-    switchTo(currentIndex + 1, message);
-  }
-
-  function stopQueue(message, done = false) {
-    freezeClock();
-    queueRunning = false;
-    testMode = false;
-    finished = done;
-    clearFailover();
-    if (playerReady && player) {
-      try { player.pause(); } catch (_) {}
-    }
-    setStatus(message, done);
+    currentIndex=Math.min(currentIndex,Math.max(0,state.active.length-1)); saveState();
+    if(queueRunning && state.active.length===0) stopQueue('Все активные каналы закончены.',true);
+    else if(playerReady && currentEntry()) player.setChannel(currentEntry().name);
     render();
   }
-
-  function startQueue() {
-    if (!playerReady || !player) return;
-    testMode = false;
-    queueRunning = true;
-    finished = false;
-    allOfflineAttempts = 0;
-    resetClock();
-    setStatus(`Запускаю ${channels[currentIndex].name.toUpperCase()}...`);
-    try { player.play(); } catch (_) {}
-    armFailover(switchGuard);
-    render();
+  function restoreReady(id){
+    if(!canEdit()) return;
+    const idx=state.ready.findIndex(x=>x.id===id); if(idx<0) return;
+    const item=state.ready.splice(idx,1)[0]; item.completedAt=null; item.elapsedMs=0; state.active.push(item); saveState(); render();
   }
 
-  function startTest() {
-    if (!playerReady || !player) return;
-    queueRunning = false;
-    testMode = true;
-    finished = false;
-    allOfflineAttempts = 0;
-    resetClock();
-    setStatus(`TEST: 15 минут на ${channels[currentIndex].name.toUpperCase()}. Таймер начнется после PLAYING.`);
-    try { player.play(); } catch (_) {}
-    armFailover(switchGuard);
-    render();
-  }
-
-  function pauseByUser() {
-    if (!playerReady || !player) return;
-    freezeClock();
-    queueRunning = false;
-    testMode = false;
-    clearFailover();
-    try { player.pause(); } catch (_) {}
-    setStatus('Остановлено пользователем. Для нового запуска нажми START.');
-    render();
-  }
-
-  els.startBtn.addEventListener('click', startQueue);
-  els.testBtn.addEventListener('click', startTest);
-  els.pauseBtn.addEventListener('click', pauseByUser);
-  els.nextBtn.addEventListener('click', () => {
-    if (testMode) return;
-    if (!queueRunning) {
-      if (currentIndex < channels.length - 1) switchTo(currentIndex + 1, 'Переключено вручную.');
-      return;
-    }
-    advanceQueue('Переключено вручную.');
-  });
-  els.resetBtn.addEventListener('click', () => {
-    stopQueue('Настройки сброшены.');
-    channels = structuredClone(DEFAULT_CHANNELS);
-    saveChannels();
-    currentIndex = 0;
-    elapsedMs = 0;
-    finished = false;
-    if (playerReady && player) player.setChannel(channels[0].name);
-    render();
-  });
-
-  if (supportedHost) {
-    try {
-      const embed = new Twitch.Embed('twitch-embed', {
-        width: '100%',
-        height: 480,
-        channel: channels[0].name,
-        layout: 'video',
-        autoplay: false,
-        allowfullscreen: true,
-        parent: [location.hostname]
+  function renderCatalog(){
+    els.catalog.innerHTML='';
+    DROP_CATALOG.forEach(d=>{
+      const box=document.createElement('div'); box.className='catalog-item';
+      const title=document.createElement('strong'); title.textContent=d.item;
+      const meta=document.createElement('div'); meta.className='dropmeta'; meta.textContent=`${d.minutes} мин • ${isDropClaimed(d.id)?'ПОЛУЧЕН':'эксклюзивный'}`;
+      const chips=document.createElement('div'); chips.className='chips';
+      d.channels.forEach(ch=>{
+        const b=document.createElement('button'); b.className='chip'; b.textContent='+'+ch.toUpperCase();
+        b.disabled=isDropClaimed(d.id)||hasDropPending(d.id)||!canEdit();
+        b.addEventListener('click',()=>addChannelByName(ch,d.minutes)); chips.appendChild(b);
       });
+      box.append(title,meta,chips); els.catalog.appendChild(box);
+    });
+    els.generalDrops.innerHTML=''; GENERAL_DROPS.forEach(([name,min])=>{ const d=document.createElement('div'); d.innerHTML=`<b>${name}</b><br>${min} мин`; els.generalDrops.appendChild(d); });
+  }
 
-      embed.addEventListener(Twitch.Embed.VIDEO_READY, () => {
-        player = embed.getPlayer();
-        playerReady = true;
-        setStatus('Плеер готов. Убедись, что Twitch вошел в твой аккаунт, затем запусти TEST 15 MIN.');
+  function render(){
+    renderCampaign();
+    const ch=currentEntry();
+    if(!ch){
+      els.currentName.textContent='ОЧЕРЕДЬ ПУСТА'; els.currentDrop.textContent='Добавь стримера'; els.timeText.textContent='00:00'; els.progressBar.style.width='0%';
+      els.openChannel.href='https://www.twitch.tv/directory/category/rust';
+    } else {
+      const target=currentTargetMs(), elapsed=Math.min(totalElapsedMs(),target), pct=target>0?Math.min(100,elapsed/target*100):0;
+      els.currentName.textContent=ch.name.toUpperCase(); els.currentDrop.textContent=dropLabel(ch); els.timeText.textContent=`${formatMs(elapsed)} / ${formatMs(target)}`; els.progressBar.style.width=`${pct.toFixed(2)}%`; els.openChannel.href=`https://www.twitch.tv/${encodeURIComponent(ch.name)}`;
+      if((queueRunning||testMode)&&elapsed>=target){ completeCurrent(); return; }
+    }
+    els.pauseBtn.disabled=!queueRunning&&!testMode; els.nextBtn.disabled=testMode||state.active.length<2;
+    els.startBtn.textContent=queueRunning?'RUNNING':(finished?'START AGAIN':'START'); els.startBtn.disabled=!supportedHost||!playerReady||queueRunning||testMode||!ch;
+    els.testBtn.disabled=!supportedHost||!playerReady||queueRunning||testMode||!ch;
+    els.addBtn.disabled=!canEdit(); els.newName.disabled=!canEdit(); els.newMinutes.disabled=!canEdit();
+    renderQueue(); renderReady(); renderClaimed(); renderCatalog();
+  }
+  function clearOfflineTimer(){ if(offlineTimer) clearTimeout(offlineTimer); offlineTimer=null; }
+  function switchTo(index,reason=''){
+    if(!state.active.length) return;
+    freezeClock(); currentIndex=((index%state.active.length)+state.active.length)%state.active.length; finished=false; clearOfflineTimer(); render();
+    if(!playerReady||!player) return;
+    const ch=currentEntry(); setStatus(reason||`Переключаюсь на ${ch.name.toUpperCase()}...`); player.setChannel(ch.name); try{ player.play(); }catch(_){}
+  }
+  function nextActive(reason){ if(state.active.length<2){ setStatus('Других активных каналов нет.'); return; } switchTo((currentIndex+1)%state.active.length,reason); }
+  function completeCurrent(){
+    freezeClock();
+    if(testMode){ testMode=false; setStatus('15-минутный тест завершен. Проверь Drops Inventory.',true); render(); return; }
+    if(!queueRunning || !currentEntry()) return;
+    const item=state.active.splice(currentIndex,1)[0]; item.elapsedMs=item.minutes*60*1000; item.completedAt=Date.now(); state.ready.push(item); saveState(); playStartedAt=null; isPlaying=false; offlineSeen.clear();
+    if(!state.active.length){ stopQueue(`${item.dropName||item.name.toUpperCase()}: время выполнено. Активная очередь закончена.`,true); return; }
+    if(currentIndex>=state.active.length) currentIndex=0;
+    const next=currentEntry(); setStatus(`${item.dropName||item.name.toUpperCase()}: время выполнено. Переключаюсь на ${next.name.toUpperCase()}.`,true); player.setChannel(next.name); try{player.play();}catch(_){} render();
+  }
+  function skipOffline(){
+    freezeClock(); clearOfflineTimer(); if(!currentEntry()) return;
+    const off=currentEntry();
+    if(testMode){ setStatus(`${off.name.toUpperCase()} OFFLINE. Для теста выбери другой канал.`); testMode=false; render(); return; }
+    if(!queueRunning) return;
+    offlineSeen.add(off.id);
+    if(offlineSeen.size>=state.active.length){ queueRunning=false; setStatus('Все каналы активной очереди сообщили OFFLINE. Ничего не удалено — запусти позже.'); render(); return; }
+    nextActive(`${off.name.toUpperCase()} OFFLINE. Пропускаю пока что.`);
+  }
+  function stopQueue(message,done=false){ freezeClock(); queueRunning=false; testMode=false; finished=done; clearOfflineTimer(); try{ if(playerReady&&player) player.pause(); }catch(_){} setStatus(message,done); render(); }
+  function startQueue(){ if(!playerReady||!player||!currentEntry()) return; testMode=false; queueRunning=true; finished=false; offlineSeen.clear(); playStartedAt=null; isPlaying=false; setStatus(`Запускаю ${currentEntry().name.toUpperCase()}...`); try{ player.play(); }catch(_){} render(); }
+  function startTest(){ if(!playerReady||!player||!currentEntry()) return; queueRunning=false; testMode=true; finished=false; elapsedMs=0; playStartedAt=null; isPlaying=false; setStatus(`TEST: 15 минут на ${currentEntry().name.toUpperCase()}. Таймер начнется после PLAYING.`); try{ player.play(); }catch(_){} render(); }
+  function pauseByUser(){ if(!playerReady||!player) return; freezeClock(); queueRunning=false; testMode=false; clearOfflineTimer(); try{player.pause();}catch(_){} setStatus('Остановлено пользователем.'); render(); }
 
-        player.addEventListener(Twitch.Player.PLAYING, () => {
-          clearFailover();
-          allOfflineAttempts = 0;
-          if (queueRunning || testMode) {
-            startClock();
-            setStatus(`${channels[currentIndex].name.toUpperCase()} играет. Таймер идет.`);
-          }
-          render();
-        });
+  els.startBtn.addEventListener('click',startQueue); els.testBtn.addEventListener('click',startTest); els.pauseBtn.addEventListener('click',pauseByUser);
+  els.nextBtn.addEventListener('click',()=>{ if(!testMode) nextActive('Переключено вручную.'); });
+  els.resetBtn.addEventListener('click',()=>{ stopQueue('Настройки сброшены.'); state=defaultState(); saveState(); currentIndex=0; elapsedMs=0; finished=false; if(playerReady&&currentEntry()) player.setChannel(currentEntry().name); render(); });
+  els.addBtn.addEventListener('click',addChannel); els.newName.addEventListener('keydown',e=>{ if(e.key==='Enter') addChannel(); });
 
-        player.addEventListener(Twitch.Player.PAUSE, () => {
-          freezeClock();
-          if (queueRunning || testMode) setStatus('Twitch-плеер на паузе. Таймер остановлен.');
-          render();
-        });
+  window.setDropWatcherPipMode = enabled => { document.body.classList.toggle('pip-mode',!!enabled); window.scrollTo(0,0); };
 
-        player.addEventListener(Twitch.Player.OFFLINE, () => {
-          freezeClock();
-          if (!(queueRunning || testMode)) return;
-          clearFailover();
-          const guard = switchGuard;
-          failoverTimer = setTimeout(() => {
-            if (guard !== switchGuard) return;
-            if (testMode) {
-              setStatus('Этот канал сейчас OFFLINE. Для теста нажми NEXT и выбери онлайн-канал.');
-            } else if (queueRunning) {
-              skipOffline(`${channels[currentIndex].name.toUpperCase()} OFFLINE. Пропускаю.`);
-            }
-          }, 2500);
-          render();
-        });
-
-        player.addEventListener(Twitch.Player.ONLINE, () => {
-          clearFailover();
-          if (queueRunning || testMode) {
-            setStatus(`${channels[currentIndex].name.toUpperCase()} ONLINE. Жду PLAYING...`);
-            armFailover(switchGuard);
-          }
-        });
-
-        player.addEventListener(Twitch.Player.PLAYBACK_BLOCKED, () => {
-          freezeClock();
-          clearFailover();
-          setStatus('Браузер заблокировал автоматическое воспроизведение. Нажми PLAY прямо в Twitch-плеере.');
-          render();
-        });
-
+  if(supportedHost){
+    try{
+      const initial=currentEntry() ? currentEntry().name : 'peterpark';
+      const embed=new Twitch.Embed('twitch-embed',{width:'100%',height:480,channel:initial,layout:'video',autoplay:false,allowfullscreen:true,parent:[location.hostname]});
+      embed.addEventListener(Twitch.Embed.VIDEO_READY,()=>{
+        player=embed.getPlayer(); playerReady=true; setStatus('Плеер готов. Нажми START, затем PLAY в плеере если потребуется.');
+        player.addEventListener(Twitch.Player.PLAYING,()=>{ clearOfflineTimer(); offlineSeen.clear(); if(queueRunning||testMode){ startClock(); setStatus(`${currentEntry()?currentEntry().name.toUpperCase():'Канал'} играет. Таймер идет.`); } render(); });
+        player.addEventListener(Twitch.Player.PAUSE,()=>{ freezeClock(); if(queueRunning||testMode) setStatus('Twitch-плеер на паузе. Таймер остановлен.'); render(); });
+        player.addEventListener(Twitch.Player.OFFLINE,()=>{ freezeClock(); if(!(queueRunning||testMode)) return; clearOfflineTimer(); offlineTimer=setTimeout(()=>{ offlineTimer=null; skipOffline(); },2500); render(); });
+        player.addEventListener(Twitch.Player.ONLINE,()=>{ clearOfflineTimer(); if(queueRunning||testMode) setStatus(`${currentEntry()?currentEntry().name.toUpperCase():'Канал'} ONLINE. Жду PLAYING...`); });
+        player.addEventListener(Twitch.Player.PLAYBACK_BLOCKED,()=>{ freezeClock(); setStatus('Автовоспроизведение заблокировано. Нажми PLAY прямо в Twitch-плеере.'); render(); });
         render();
       });
-    } catch (err) {
-      setStatus(`Ошибка загрузки Twitch Embed: ${err && err.message ? err.message : String(err)}`);
-    }
+    }catch(err){ setStatus(`Ошибка Twitch Embed: ${err&&err.message?err.message:String(err)}`); }
   }
 
-  renderTimer = setInterval(render, 500);
-  window.addEventListener('beforeunload', () => {
-    clearInterval(renderTimer);
-    clearFailover();
-  });
-
+  renderTimer=setInterval(render,500);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) render(); });
+  window.addEventListener('beforeunload',()=>{ clearInterval(renderTimer); clearOfflineTimer(); });
   render();
 })();
 </script>
