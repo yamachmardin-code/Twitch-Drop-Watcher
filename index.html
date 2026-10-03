@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
+  <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Twitch Drop Watcher</title>
   <style>
     :root { font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#f3f3f3; background:#111; }
@@ -22,7 +24,9 @@
     .label { color:#aaa; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
     .current { font-size:24px; font-weight:750; margin-top:3px; overflow-wrap:anywhere; }
     .dropname { font-size:15px; color:#c9c9c9; margin-top:2px; }
-    .timer { font-variant-numeric:tabular-nums; font-size:32px; font-weight:750; margin-top:5px; }
+    .timer-label { color:#aaa; font-size:12px; text-transform:uppercase; letter-spacing:.08em; margin-top:8px; }
+    .timer { font-variant-numeric:tabular-nums; font-size:32px; font-weight:750; margin-top:2px; }
+    .timer-sub { color:#aaa; font-size:12px; margin-top:3px; }
     .status { margin-top:6px; color:#cfcfcf; min-height:22px; line-height:1.35; }
     .queue,.stack,.catalog { display:grid; gap:8px; margin-top:10px; }
     .qitem { display:grid; grid-template-columns:28px minmax(0,1fr) 76px 40px 40px 40px; gap:6px; align-items:center; padding:8px; border:1px solid #2b2b2b; border-radius:9px; }
@@ -63,11 +67,12 @@
     @media (max-width:620px) { .qitem { grid-template-columns:24px minmax(0,1fr) 68px 36px 36px 36px; gap:4px; } .qitem button.icon { min-width:34px; padding:8px 0; } .addbar { grid-template-columns:minmax(0,1fr) 78px; } .addbar button { grid-column:1 / -1; } }
 
     body.pip-mode { overflow:hidden; background:#000; }
-    body.pip-mode .app { width:400px; min-width:400px; height:300px; padding:0; margin:0; }
+    body.pip-mode .app { width:100vw; height:100vh; padding:0; margin:0; overflow:hidden; }
     body.pip-mode .chrome { display:none !important; }
     body.pip-mode .grid { display:block; }
-    body.pip-mode .player-wrap { position:fixed; inset:0; margin:0 !important; padding:0; border:0; border-radius:0; width:400px; height:300px; overflow:hidden; background:#000; }
+    body.pip-mode .player-wrap { position:fixed; left:var(--pip-x,0px); top:var(--pip-y,0px); margin:0 !important; padding:0; border:0; border-radius:0; width:400px; height:300px; overflow:hidden; background:#000; transform-origin:top left; transform:scale(var(--pip-scale,1)); }
     body.pip-mode #twitch-embed { width:400px !important; height:300px !important; min-width:400px; min-height:300px; }
+    body.pip-mode #twitch-embed iframe { width:400px !important; height:300px !important; min-width:400px !important; min-height:300px !important; }
   </style>
 </head>
 <body>
@@ -84,7 +89,9 @@
       <div class="label">Сейчас</div>
       <div id="currentName" class="current">PETERPARK</div>
       <div id="currentDrop" class="dropname">Double Barrel Shotgun</div>
-      <div id="timeText" class="timer">00:00 / 01:00:00</div>
+      <div class="timer-label">ОСТАЛОСЬ</div>
+      <div id="timeText" class="timer">01:00:00</div>
+      <div id="timeSub" class="timer-sub">Просмотрено 00:00 из 01:00:00</div>
       <div class="progress"><div id="progressBar" class="bar"></div></div>
       <div id="status" class="status">Готово. Нажми START.</div>
 
@@ -102,6 +109,7 @@
       </div>
 
       <div class="note small"><b>Важно:</b> приложение не читает Twitch Inventory и не нажимает Claim автоматически. Когда наше время закончено, стример уходит из рабочей очереди в "Готово к проверке". После проверки Inventory нажми "ПОЛУЧЕН" — тогда этот дроп и все альтернативные каналы для него уйдут в архив.</div>
+      <div class="note small"><b>Безопасность:</b> пароль Twitch вводи только на странице с адресом twitch.tv. Drop Watcher не просит пароль, не читает Twitch cookies и не сохраняет пароль или OAuth-токены.</div>
     </section>
 
     <section>
@@ -171,12 +179,12 @@
     {id:'double-barrel-shotgun', item:'Double Barrel Shotgun', minutes:60, channels:['peterpark']},
     {id:'boonie-hat', item:'Boonie Hat', minutes:60, channels:['fuslie','sven']},
     {id:'small-backpack', item:'Small Backpack', minutes:60, channels:['abe']},
-    {id:'furnace', item:'Furnace', minutes:60, channels:['esfandtv']},
+    {id:'furnace', item:'Furnace', minutes:60, channels:['esfandtv','monstera']},
     {id:'wooden-door', item:'Wooden Door', minutes:60, channels:['xchocobars']},
     {id:'large-wood-box-streamer', item:'Large Wood Box', minutes:60, channels:['ironmouse']},
-    {id:'salvaged-sword', item:'Salvaged Sword', minutes:60, channels:['willneff']},
-    {id:'garage-door', item:'Garage Door', minutes:60, channels:['foolish']},
-    {id:'locker', item:'Locker', minutes:60, channels:['tinakitten']},
+    {id:'salvaged-sword', item:'Salvaged Sword', minutes:60, channels:['willneff','raynbirds']},
+    {id:'garage-door', item:'Garage Door', minutes:60, channels:['mammoth']},
+    {id:'locker', item:'Locker', minutes:60, channels:['heyyouvideogame','dakkiin']},
     {id:'metal-facemask', item:'Metal Facemask', minutes:60, channels:['cyr','mrwobblestwitch']},
     {id:'metal-chestplate', item:'Metal Chestplate', minutes:60, channels:['aceu','zchum']},
     {id:'vagabond-jacket', item:'Vagabond Jacket', minutes:60, channels:['ledoo','fancyorb']},
@@ -192,10 +200,11 @@
   const STORAGE_KEY = 'tdw_state_v3';
   const V2_KEY = 'tdw_channels_v2';
   const MAX_CHANNELS = 50;
+  const MAX_CLOCK_GAP_MS = 30000; // Do not count long WebView/OS suspensions as watched time.
   const CHANNEL_RE = /^[a-zA-Z0-9_]{1,25}$/;
   const $ = id => document.getElementById(id);
   const els = {
-    campaignBox:$('campaignBox'), httpsWarning:$('httpsWarning'), currentName:$('currentName'), currentDrop:$('currentDrop'), timeText:$('timeText'), progressBar:$('progressBar'), status:$('status'),
+    campaignBox:$('campaignBox'), httpsWarning:$('httpsWarning'), currentName:$('currentName'), currentDrop:$('currentDrop'), timeText:$('timeText'), timeSub:$('timeSub'), progressBar:$('progressBar'), status:$('status'),
     startBtn:$('startBtn'), pauseBtn:$('pauseBtn'), nextBtn:$('nextBtn'), testBtn:$('testBtn'), resetBtn:$('resetBtn'), openChannel:$('openChannel'),
     queue:$('queue'), emptyQueue:$('emptyQueue'), newName:$('newName'), newMinutes:$('newMinutes'), addBtn:$('addBtn'), addError:$('addError'),
     readyList:$('readyList'), readyEmpty:$('readyEmpty'), claimedList:$('claimedList'), claimedEmpty:$('claimedEmpty'), catalog:$('catalog'), generalDrops:$('generalDrops')
@@ -248,19 +257,38 @@
   function currentEntry(){ return state.active[currentIndex] || null; }
   function currentTargetMs(){ const e=currentEntry(); return e ? (testMode?15:e.minutes)*60*1000 : 0; }
   function storedElapsed(){ const e=currentEntry(); return testMode ? elapsedMs : (e ? Math.max(0,Number(e.elapsedMs)||0) : 0); }
-  function totalElapsedMs(){ return storedElapsed() + (isPlaying&&playStartedAt!==null ? Date.now()-playStartedAt : 0); }
+  function activeClockDelta(){ return isPlaying&&playStartedAt!==null ? Math.min(MAX_CLOCK_GAP_MS,Math.max(0,Date.now()-playStartedAt)) : 0; }
+  function totalElapsedMs(){ return storedElapsed() + activeClockDelta(); }
   function freezeClock(){
     if(isPlaying&&playStartedAt!==null){
-      const delta=Math.max(0,Date.now()-playStartedAt);
+      const delta=Math.min(MAX_CLOCK_GAP_MS,Math.max(0,Date.now()-playStartedAt));
       if(testMode) elapsedMs+=delta;
       else { const e=currentEntry(); if(e){ e.elapsedMs=Math.max(0,Number(e.elapsedMs)||0)+delta; saveState(); } }
     }
     playStartedAt=null; isPlaying=false;
   }
   function startClock(){ if(!isPlaying){ isPlaying=true; playStartedAt=Date.now(); } }
+  function checkpointClock(){
+    if(!isPlaying || playStartedAt===null) return;
+    const now=Date.now(), delta=Math.min(MAX_CLOCK_GAP_MS,Math.max(0,now-playStartedAt));
+    if(delta<=0) return;
+    if(testMode) elapsedMs+=delta;
+    else { const e=currentEntry(); if(e){ e.elapsedMs=Math.max(0,Number(e.elapsedMs)||0)+delta; saveState(); } }
+    playStartedAt=now;
+  }
+  function playerChannelMatchesCurrent(){
+    const e=currentEntry(); if(!e || !player) return true;
+    try{ const actual=sanitizeName(player.getChannel()); return !actual || actual===e.name; }catch(_){ return true; }
+  }
   function resetTestClock(){ elapsedMs=0; playStartedAt=isPlaying?Date.now():null; }
   function formatMs(ms){ const t=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60; return h>0?`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
   function setStatus(text,done=false){ els.status.textContent=text; els.status.classList.toggle('done',done); }
+  const NATIVE_NOTIFICATION_TYPES=new Set(['drop_ready','queue_done','stream_offline']);
+  function nativeNotify(type,title,body){
+    if(!NATIVE_NOTIFICATION_TYPES.has(type)) return;
+    if(!window.DropWatcherNative||typeof window.DropWatcherNative.postMessage!=='function') return;
+    try{ window.DropWatcherNative.postMessage(JSON.stringify({type,title:String(title||'').slice(0,80),body:String(body||'').slice(0,220)})); }catch(_){}
+  }
   function canEdit(){ return !queueRunning&&!testMode; }
   function dropLabel(e){ return e&&e.dropName ? e.dropName : 'Пользовательский канал'; }
   function isDropClaimed(dropId){ return !!dropId && state.claimed.some(x=>x.dropId===dropId); }
@@ -270,7 +298,7 @@
     const now=Date.now(), end=Date.parse(CAMPAIGN.end);
     if(now>end){ els.campaignBox.textContent=`Каталог ${CAMPAIGN.name} завершен. Не добавляй новые каналы по этому списку без обновления данных.`; return; }
     const left=end-now, d=Math.floor(left/86400000), h=Math.floor((left%86400000)/3600000), m=Math.floor((left%3600000)/60000);
-    els.campaignBox.textContent=`${CAMPAIGN.name}: до конца примерно ${d}д ${h}ч ${m}м. Каталог зафиксирован по официальной странице Facepunch.`;
+    els.campaignBox.textContent=`${CAMPAIGN.name}: до конца примерно ${d}д ${h}ч ${m}м. Каталог проверен по официальной странице Facepunch 2026-10-02.`;
   }
 
   function renderQueue(){
@@ -373,18 +401,19 @@
       });
       box.append(title,meta,chips); els.catalog.appendChild(box);
     });
-    els.generalDrops.innerHTML=''; GENERAL_DROPS.forEach(([name,min])=>{ const d=document.createElement('div'); d.innerHTML=`<b>${name}</b><br>${min} мин`; els.generalDrops.appendChild(d); });
+    els.generalDrops.innerHTML=''; GENERAL_DROPS.forEach(([name,min])=>{ const d=document.createElement('div'); const b=document.createElement('b'); b.textContent=name; const br=document.createElement('br'); d.append(b,br,document.createTextNode(`${min} мин`)); els.generalDrops.appendChild(d); });
   }
 
   function render(){
     renderCampaign();
     const ch=currentEntry();
     if(!ch){
-      els.currentName.textContent='ОЧЕРЕДЬ ПУСТА'; els.currentDrop.textContent='Добавь стримера'; els.timeText.textContent='00:00'; els.progressBar.style.width='0%';
+      els.currentName.textContent='ОЧЕРЕДЬ ПУСТА'; els.currentDrop.textContent='Добавь стримера'; els.timeText.textContent='--:--'; els.timeSub.textContent='Просмотрено --:-- из --:--'; els.progressBar.style.width='0%';
       els.openChannel.href='https://www.twitch.tv/directory/category/rust';
     } else {
-      const target=currentTargetMs(), elapsed=Math.min(totalElapsedMs(),target), pct=target>0?Math.min(100,elapsed/target*100):0;
-      els.currentName.textContent=ch.name.toUpperCase(); els.currentDrop.textContent=dropLabel(ch); els.timeText.textContent=`${formatMs(elapsed)} / ${formatMs(target)}`; els.progressBar.style.width=`${pct.toFixed(2)}%`; els.openChannel.href=`https://www.twitch.tv/${encodeURIComponent(ch.name)}`;
+      const target=currentTargetMs(), elapsed=Math.min(totalElapsedMs(),target), remaining=Math.max(0,target-elapsed), pct=target>0?Math.min(100,elapsed/target*100):0;
+      const remainingRounded=Math.ceil(remaining/1000)*1000;
+      els.currentName.textContent=ch.name.toUpperCase(); els.currentDrop.textContent=dropLabel(ch); els.timeText.textContent=formatMs(remainingRounded); els.timeSub.textContent=`Просмотрено ${formatMs(elapsed)} из ${formatMs(target)}`; els.progressBar.style.width=`${pct.toFixed(2)}%`; els.openChannel.href=`https://www.twitch.tv/${encodeURIComponent(ch.name)}`;
       if((queueRunning||testMode)&&elapsed>=target){ completeCurrent(); return; }
     }
     els.pauseBtn.disabled=!queueRunning&&!testMode; els.nextBtn.disabled=testMode||state.active.length<2;
@@ -406,7 +435,8 @@
     if(testMode){ testMode=false; setStatus('15-минутный тест завершен. Проверь Drops Inventory.',true); render(); return; }
     if(!queueRunning || !currentEntry()) return;
     const item=state.active.splice(currentIndex,1)[0]; item.elapsedMs=item.minutes*60*1000; item.completedAt=Date.now(); state.ready.push(item); saveState(); playStartedAt=null; isPlaying=false; offlineSeen.clear();
-    if(!state.active.length){ stopQueue(`${item.dropName||item.name.toUpperCase()}: время выполнено. Активная очередь закончена.`,true); return; }
+    nativeNotify('drop_ready','Drop готов к проверке',`${item.dropName||item.name.toUpperCase()} • ${item.name.toUpperCase()}`);
+    if(!state.active.length){ nativeNotify('queue_done','Очередь завершена','Проверь раздел "Готово к проверке" и Twitch Drops Inventory.'); stopQueue(`${item.dropName||item.name.toUpperCase()}: время выполнено. Активная очередь закончена.`,true); return; }
     if(currentIndex>=state.active.length) currentIndex=0;
     const next=currentEntry(); setStatus(`${item.dropName||item.name.toUpperCase()}: время выполнено. Переключаюсь на ${next.name.toUpperCase()}.`,true); player.setChannel(next.name); try{player.play();}catch(_){} render();
   }
@@ -416,7 +446,9 @@
     if(testMode){ setStatus(`${off.name.toUpperCase()} OFFLINE. Для теста выбери другой канал.`); testMode=false; render(); return; }
     if(!queueRunning) return;
     offlineSeen.add(off.id);
-    if(offlineSeen.size>=state.active.length){ queueRunning=false; setStatus('Все каналы активной очереди сообщили OFFLINE. Ничего не удалено — запусти позже.'); render(); return; }
+    if(offlineSeen.size>=state.active.length){ queueRunning=false; nativeNotify('stream_offline',`${off.name.toUpperCase()} offline`,'Все каналы очереди сейчас offline. Ничего не удалено.'); setStatus('Все каналы активной очереди сообщили OFFLINE. Ничего не удалено — запусти позже.'); render(); return; }
+    const nextIndex=(currentIndex+1)%state.active.length, next=state.active[nextIndex];
+    nativeNotify('stream_offline',`${off.name.toUpperCase()} offline`,next?`Переключаюсь на ${next.name.toUpperCase()}`:'Переключаюсь на следующий канал.');
     nextActive(`${off.name.toUpperCase()} OFFLINE. Пропускаю пока что.`);
   }
   function stopQueue(message,done=false){ freezeClock(); queueRunning=false; testMode=false; finished=done; clearOfflineTimer(); try{ if(playerReady&&player) player.pause(); }catch(_){} setStatus(message,done); render(); }
@@ -429,7 +461,22 @@
   els.resetBtn.addEventListener('click',()=>{ stopQueue('Настройки сброшены.'); state=defaultState(); saveState(); currentIndex=0; elapsedMs=0; finished=false; if(playerReady&&currentEntry()) player.setChannel(currentEntry().name); render(); });
   els.addBtn.addEventListener('click',addChannel); els.newName.addEventListener('keydown',e=>{ if(e.key==='Enter') addChannel(); });
 
-  window.setDropWatcherPipMode = enabled => { document.body.classList.toggle('pip-mode',!!enabled); window.scrollTo(0,0); };
+  function applyPipScale(){
+    if(!document.body.classList.contains('pip-mode')) return;
+    const scale=Math.max(0.1,Math.min(window.innerWidth/400,window.innerHeight/300));
+    const x=Math.max(0,(window.innerWidth-400*scale)/2);
+    const y=Math.max(0,(window.innerHeight-300*scale)/2);
+    document.documentElement.style.setProperty('--pip-scale',String(scale));
+    document.documentElement.style.setProperty('--pip-x',`${x}px`);
+    document.documentElement.style.setProperty('--pip-y',`${y}px`);
+  }
+  window.setDropWatcherPipMode = enabled => {
+    document.body.classList.toggle('pip-mode',!!enabled);
+    if(enabled) applyPipScale();
+    else { document.documentElement.style.removeProperty('--pip-scale'); document.documentElement.style.removeProperty('--pip-x'); document.documentElement.style.removeProperty('--pip-y'); }
+    window.scrollTo(0,0);
+  };
+  window.addEventListener('resize',applyPipScale);
 
   if(supportedHost){
     try{
@@ -437,19 +484,22 @@
       const embed=new Twitch.Embed('twitch-embed',{width:'100%',height:480,channel:initial,layout:'video',autoplay:false,allowfullscreen:true,parent:[location.hostname]});
       embed.addEventListener(Twitch.Embed.VIDEO_READY,()=>{
         player=embed.getPlayer(); playerReady=true; setStatus('Плеер готов. Нажми START, затем PLAY в плеере если потребуется.');
-        player.addEventListener(Twitch.Player.PLAYING,()=>{ clearOfflineTimer(); offlineSeen.clear(); if(queueRunning||testMode){ startClock(); setStatus(`${currentEntry()?currentEntry().name.toUpperCase():'Канал'} играет. Таймер идет.`); } render(); });
-        player.addEventListener(Twitch.Player.PAUSE,()=>{ freezeClock(); if(queueRunning||testMode) setStatus('Twitch-плеер на паузе. Таймер остановлен.'); render(); });
-        player.addEventListener(Twitch.Player.OFFLINE,()=>{ freezeClock(); if(!(queueRunning||testMode)) return; clearOfflineTimer(); offlineTimer=setTimeout(()=>{ offlineTimer=null; skipOffline(); },2500); render(); });
-        player.addEventListener(Twitch.Player.ONLINE,()=>{ clearOfflineTimer(); if(queueRunning||testMode) setStatus(`${currentEntry()?currentEntry().name.toUpperCase():'Канал'} ONLINE. Жду PLAYING...`); });
-        player.addEventListener(Twitch.Player.PLAYBACK_BLOCKED,()=>{ freezeClock(); setStatus('Автовоспроизведение заблокировано. Нажми PLAY прямо в Twitch-плеере.'); render(); });
+        player.addEventListener(Twitch.Player.PLAYING,()=>{ if(!playerChannelMatchesCurrent()) return; clearOfflineTimer(); offlineSeen.clear(); if(queueRunning||testMode){ startClock(); setStatus(`${currentEntry()?currentEntry().name.toUpperCase():'Канал'} играет. Таймер идет.`); } render(); });
+        player.addEventListener(Twitch.Player.PAUSE,()=>{ if(!playerChannelMatchesCurrent()) return; freezeClock(); if(queueRunning||testMode) setStatus('Twitch-плеер на паузе. Таймер остановлен.'); render(); });
+        player.addEventListener(Twitch.Player.OFFLINE,()=>{ if(!playerChannelMatchesCurrent()) return; freezeClock(); if(!(queueRunning||testMode)) return; clearOfflineTimer(); offlineTimer=setTimeout(()=>{ offlineTimer=null; if(playerChannelMatchesCurrent()) skipOffline(); },2500); render(); });
+        player.addEventListener(Twitch.Player.ENDED,()=>{ if(!playerChannelMatchesCurrent()) return; freezeClock(); if(!(queueRunning||testMode)) return; clearOfflineTimer(); offlineTimer=setTimeout(()=>{ offlineTimer=null; if(playerChannelMatchesCurrent()) skipOffline(); },2500); render(); });
+        player.addEventListener(Twitch.Player.ONLINE,()=>{ if(!playerChannelMatchesCurrent()) return; clearOfflineTimer(); if(queueRunning||testMode) setStatus(`${currentEntry()?currentEntry().name.toUpperCase():'Канал'} ONLINE. Жду PLAYING...`); });
+        player.addEventListener(Twitch.Player.PLAYBACK_BLOCKED,()=>{ if(!playerChannelMatchesCurrent()) return; freezeClock(); setStatus('Автовоспроизведение заблокировано. Нажми PLAY прямо в Twitch-плеере.'); render(); });
         render();
       });
     }catch(err){ setStatus(`Ошибка Twitch Embed: ${err&&err.message?err.message:String(err)}`); }
   }
 
   renderTimer=setInterval(render,500);
+  const checkpointTimer=setInterval(checkpointClock,15000);
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) render(); });
-  window.addEventListener('beforeunload',()=>{ clearInterval(renderTimer); clearOfflineTimer(); });
+  window.addEventListener('pagehide',()=>{ checkpointClock(); });
+  window.addEventListener('beforeunload',()=>{ checkpointClock(); clearInterval(renderTimer); clearInterval(checkpointTimer); clearOfflineTimer(); });
   render();
 })();
 </script>
